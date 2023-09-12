@@ -136,25 +136,23 @@ impl<R: Reader> fallible_iterator::FallibleIterator for ArangeHeaderIter<R> {
 ///
 /// These entries all belong to a single unit.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ArangeHeader<R, Offset = <R as Reader>::Offset>
+pub struct ArangeHeader<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
-    offset: DebugArangesOffset<Offset>,
+    offset: DebugArangesOffset<R::Offset>,
     encoding: Encoding,
-    length: Offset,
-    debug_info_offset: DebugInfoOffset<Offset>,
+    length: R::Offset,
+    debug_info_offset: DebugInfoOffset<R::Offset>,
     segment_size: u8,
     entries: R,
 }
 
-impl<R, Offset> ArangeHeader<R, Offset>
+impl<R> ArangeHeader<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
-    fn parse(input: &mut R, offset: DebugArangesOffset<Offset>) -> Result<Self> {
+    fn parse(input: &mut R, offset: DebugArangesOffset<R::Offset>) -> Result<Self> {
         let (length, format) = input.read_initial_length()?;
         let mut rest = input.split(length)?;
 
@@ -209,13 +207,13 @@ where
 
     /// Return the offset of this header within the `.debug_aranges` section.
     #[inline]
-    pub fn offset(&self) -> DebugArangesOffset<Offset> {
+    pub fn offset(&self) -> DebugArangesOffset<R::Offset> {
         self.offset
     }
 
     /// Return the length of this set of entries, including the header.
     #[inline]
-    pub fn length(&self) -> Offset {
+    pub fn length(&self) -> R::Offset {
         self.length
     }
 
@@ -233,7 +231,7 @@ where
 
     /// Return the offset into the .debug_info section for this set of arange entries.
     #[inline]
-    pub fn debug_info_offset(&self) -> DebugInfoOffset<Offset> {
+    pub fn debug_info_offset(&self) -> DebugInfoOffset<R::Offset> {
         self.debug_info_offset
     }
 

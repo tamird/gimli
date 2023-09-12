@@ -123,51 +123,48 @@ impl<R> From<R> for DebugLine<R> {
 
 /// Deprecated. `LineNumberProgram` has been renamed to `LineProgram`.
 #[deprecated(note = "LineNumberProgram has been renamed to LineProgram, use that instead.")]
-pub type LineNumberProgram<R, Offset> = dyn LineProgram<R, Offset>;
+pub type LineNumberProgram<R> = dyn LineProgram<R>;
 
 /// A `LineProgram` provides access to a `LineProgramHeader` and
 /// a way to add files to the files table if necessary. Gimli consumers should
 /// never need to use or see this trait.
-pub trait LineProgram<R, Offset = <R as Reader>::Offset>
+pub trait LineProgram<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// Get a reference to the held `LineProgramHeader`.
-    fn header(&self) -> &LineProgramHeader<R, Offset>;
+    fn header(&self) -> &LineProgramHeader<R>;
     /// Add a file to the file table if necessary.
-    fn add_file(&mut self, file: FileEntry<R, Offset>);
+    fn add_file(&mut self, file: FileEntry<R>);
 }
 
-impl<R, Offset> LineProgram<R, Offset> for IncompleteLineProgram<R, Offset>
+impl<R> LineProgram<R> for IncompleteLineProgram<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
-    fn header(&self) -> &LineProgramHeader<R, Offset> {
+    fn header(&self) -> &LineProgramHeader<R> {
         &self.header
     }
-    fn add_file(&mut self, file: FileEntry<R, Offset>) {
+    fn add_file(&mut self, file: FileEntry<R>) {
         self.header.file_names.push(file);
     }
 }
 
-impl<'program, R, Offset> LineProgram<R, Offset> for &'program CompleteLineProgram<R, Offset>
+impl<'program, R> LineProgram<R> for &'program CompleteLineProgram<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
-    fn header(&self) -> &LineProgramHeader<R, Offset> {
+    fn header(&self) -> &LineProgramHeader<R> {
         &self.header
     }
-    fn add_file(&mut self, _: FileEntry<R, Offset>) {
+    fn add_file(&mut self, _: FileEntry<R>) {
         // Nop. Our file table is already complete.
     }
 }
 
 /// Deprecated. `StateMachine` has been renamed to `LineRows`.
 #[deprecated(note = "StateMachine has been renamed to LineRows, use that instead.")]
-pub type StateMachine<R, Program, Offset> = LineRows<R, Program, Offset>;
+pub type StateMachine<R, Program> = LineRows<R, Program>;
 
 /// Executes a `LineProgram` to iterate over the rows in the matrix of line number information.
 ///
@@ -175,30 +172,26 @@ pub type StateMachine<R, Program, Offset> = LineRows<R, Program, Offset>;
 /// to expand the byte-coded instruction stream into a matrix of line number
 /// information." -- Section 6.2.1
 #[derive(Debug, Clone)]
-pub struct LineRows<R, Program, Offset = <R as Reader>::Offset>
+pub struct LineRows<R, Program>
 where
-    Program: LineProgram<R, Offset>,
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    Program: LineProgram<R>,
+    R: Reader,
 {
     program: Program,
     row: LineRow,
     instructions: LineInstructions<R>,
 }
 
-type OneShotLineRows<R, Offset = <R as Reader>::Offset> =
-    LineRows<R, IncompleteLineProgram<R, Offset>, Offset>;
+type OneShotLineRows<R> = LineRows<R, IncompleteLineProgram<R>>;
 
-type ResumedLineRows<'program, R, Offset = <R as Reader>::Offset> =
-    LineRows<R, &'program CompleteLineProgram<R, Offset>, Offset>;
+type ResumedLineRows<'program, R> = LineRows<R, &'program CompleteLineProgram<R>>;
 
-impl<R, Program, Offset> LineRows<R, Program, Offset>
+impl<R, Program> LineRows<R, Program>
 where
-    Program: LineProgram<R, Offset>,
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    Program: LineProgram<R>,
+    R: Reader,
 {
-    fn new(program: IncompleteLineProgram<R, Offset>) -> OneShotLineRows<R, Offset> {
+    fn new(program: IncompleteLineProgram<R>) -> OneShotLineRows<R> {
         let row = LineRow::new(program.header());
         let instructions = LineInstructions {
             input: program.header().program_buf.clone(),
@@ -211,9 +204,9 @@ where
     }
 
     fn resume<'program>(
-        program: &'program CompleteLineProgram<R, Offset>,
+        program: &'program CompleteLineProgram<R>,
         sequence: &LineSequence<R>,
-    ) -> ResumedLineRows<'program, R, Offset> {
+    ) -> ResumedLineRows<'program, R> {
         let row = LineRow::new(program.header());
         let instructions = sequence.instructions.clone();
         LineRows {
@@ -226,7 +219,7 @@ where
     /// Get a reference to the header for this state machine's line number
     /// program.
     #[inline]
-    pub fn header(&self) -> &LineProgramHeader<R, Offset> {
+    pub fn header(&self) -> &LineProgramHeader<R> {
         self.program.header()
     }
 
@@ -240,7 +233,7 @@ where
     ///
     /// Unfortunately, the references mean that this cannot be a
     /// `FallibleIterator`.
-    pub fn next_row(&mut self) -> Result<Option<(&LineProgramHeader<R, Offset>, &LineRow)>> {
+    pub fn next_row(&mut self) -> Result<Option<(&LineProgramHeader<R>, &LineRow)>> {
         // Perform any reset that was required after copying the previous row.
         self.row.reset(self.program.header());
 
@@ -270,14 +263,13 @@ where
 
 /// Deprecated. `Opcode` has been renamed to `LineInstruction`.
 #[deprecated(note = "Opcode has been renamed to LineInstruction, use that instead.")]
-pub type Opcode<R> = LineInstruction<R, <R as Reader>::Offset>;
+pub type Opcode<R> = LineInstruction<R>;
 
 /// A parsed line number program instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LineInstruction<R, Offset = <R as Reader>::Offset>
+pub enum LineInstruction<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// > ### 6.2.5.1 Special Opcodes
     /// >
@@ -397,7 +389,7 @@ where
 
     /// Defines a new source file in the line number program and appends it to
     /// the line number program header's list of source files.
-    DefineFile(FileEntry<R, Offset>),
+    DefineFile(FileEntry<R>),
 
     /// "The DW_LNE_set_discriminator opcode takes a single parameter, an
     /// unsigned LEB128 integer. It sets the discriminator register to the new
@@ -408,10 +400,9 @@ where
     UnknownExtended(constants::DwLne, R),
 }
 
-impl<R, Offset> LineInstruction<R, Offset>
+impl<R> LineInstruction<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     fn parse<'header>(
         header: &'header LineProgramHeader<R>,
@@ -526,10 +517,9 @@ where
     }
 }
 
-impl<R, Offset> fmt::Display for LineInstruction<R, Offset>
+impl<R> fmt::Display for LineInstruction<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> result::Result<(), fmt::Error> {
         match *self {
@@ -1025,21 +1015,20 @@ pub struct LineSequence<R: Reader> {
 #[deprecated(
     note = "LineNumberProgramHeader has been renamed to LineProgramHeader, use that instead."
 )]
-pub type LineNumberProgramHeader<R, Offset> = LineProgramHeader<R, Offset>;
+pub type LineNumberProgramHeader<R> = LineProgramHeader<R>;
 
 /// A header for a line number program in the `.debug_line` section, as defined
 /// in section 6.2.4 of the standard.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LineProgramHeader<R, Offset = <R as Reader>::Offset>
+pub struct LineProgramHeader<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     encoding: Encoding,
-    offset: DebugLineOffset<Offset>,
-    unit_length: Offset,
+    offset: DebugLineOffset<R::Offset>,
+    unit_length: R::Offset,
 
-    header_length: Offset,
+    header_length: R::Offset,
 
     line_encoding: LineEncoding,
 
@@ -1063,7 +1052,7 @@ where
     /// > of the compilation.
     /// >
     /// > The last entry is followed by a single null byte.
-    include_directories: Vec<AttributeValue<R, Offset>>,
+    include_directories: Vec<AttributeValue<R>>,
 
     /// "A sequence of file entry format descriptions."
     file_name_entry_format: Vec<FileEntryFormat>,
@@ -1071,7 +1060,7 @@ where
     /// "Entries in this sequence describe source files that contribute to the
     /// line number information for this compilation unit or is used in other
     /// contexts."
-    file_names: Vec<FileEntry<R, Offset>>,
+    file_names: Vec<FileEntry<R>>,
 
     /// The encoded line program instructions.
     program_buf: R,
@@ -1080,13 +1069,12 @@ where
     comp_dir: Option<R>,
 
     /// The primary source file.
-    comp_file: Option<FileEntry<R, Offset>>,
+    comp_file: Option<FileEntry<R>>,
 }
 
-impl<R, Offset> LineProgramHeader<R, Offset>
+impl<R> LineProgramHeader<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// Return the offset of the line number program header in the `.debug_line` section.
     pub fn offset(&self) -> DebugLineOffset<R::Offset> {
@@ -1178,14 +1166,14 @@ where
     ///
     /// For DWARF version <= 4, the compilation's current directory is not included
     /// in the return value, but is implicitly considered to be in the set per spec.
-    pub fn include_directories(&self) -> &[AttributeValue<R, Offset>] {
+    pub fn include_directories(&self) -> &[AttributeValue<R>] {
         &self.include_directories[..]
     }
 
     /// The include directory with the given directory index.
     ///
     /// A directory index of 0 corresponds to the compilation unit directory.
-    pub fn directory(&self, directory: u64) -> Option<AttributeValue<R, Offset>> {
+    pub fn directory(&self, directory: u64) -> Option<AttributeValue<R>> {
         if self.encoding.version <= 4 {
             if directory == 0 {
                 self.comp_dir.clone().map(AttributeValue::String)
@@ -1235,7 +1223,7 @@ where
     }
 
     /// Get the list of source files that appear in this header's line program.
-    pub fn file_names(&self) -> &[FileEntry<R, Offset>] {
+    pub fn file_names(&self) -> &[FileEntry<R>] {
         &self.file_names[..]
     }
 
@@ -1244,7 +1232,7 @@ where
     /// A file index of 0 corresponds to the compilation unit file.
     /// Note that a file index of 0 is invalid for DWARF version <= 4,
     /// but we support it anyway.
-    pub fn file(&self, file: u64) -> Option<&FileEntry<R, Offset>> {
+    pub fn file(&self, file: u64) -> Option<&FileEntry<R>> {
         if self.encoding.version <= 4 {
             if file == 0 {
                 self.comp_file.as_ref()
@@ -1289,11 +1277,11 @@ where
 
     fn parse(
         input: &mut R,
-        offset: DebugLineOffset<Offset>,
+        offset: DebugLineOffset<R::Offset>,
         mut address_size: u8,
         mut comp_dir: Option<R>,
         comp_name: Option<R>,
-    ) -> Result<LineProgramHeader<R, Offset>> {
+    ) -> Result<LineProgramHeader<R>> {
         let (unit_length, format) = input.read_initial_length()?;
         let rest = &mut input.split(unit_length)?;
 
@@ -1433,31 +1421,29 @@ where
 #[deprecated(
     note = "IncompleteLineNumberProgram has been renamed to IncompleteLineProgram, use that instead."
 )]
-pub type IncompleteLineNumberProgram<R, Offset> = IncompleteLineProgram<R, Offset>;
+pub type IncompleteLineNumberProgram<R> = IncompleteLineProgram<R>;
 
 /// A line number program that has not been run to completion.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct IncompleteLineProgram<R, Offset = <R as Reader>::Offset>
+pub struct IncompleteLineProgram<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
-    header: LineProgramHeader<R, Offset>,
+    header: LineProgramHeader<R>,
 }
 
-impl<R, Offset> IncompleteLineProgram<R, Offset>
+impl<R> IncompleteLineProgram<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// Retrieve the `LineProgramHeader` for this program.
-    pub fn header(&self) -> &LineProgramHeader<R, Offset> {
+    pub fn header(&self) -> &LineProgramHeader<R> {
         &self.header
     }
 
     /// Construct a new `LineRows` for executing this program to iterate
     /// over rows in the line information matrix.
-    pub fn rows(self) -> OneShotLineRows<R, Offset> {
+    pub fn rows(self) -> OneShotLineRows<R> {
         OneShotLineRows::new(self)
     }
 
@@ -1482,7 +1468,7 @@ where
     /// # }
     /// ```
     #[allow(clippy::type_complexity)]
-    pub fn sequences(self) -> Result<(CompleteLineProgram<R, Offset>, Vec<LineSequence<R>>)> {
+    pub fn sequences(self) -> Result<(CompleteLineProgram<R>, Vec<LineSequence<R>>)> {
         let mut sequences = Vec::new();
         let mut rows = self.rows();
         let mut instructions = rows.instructions.clone();
@@ -1526,25 +1512,23 @@ where
 #[deprecated(
     note = "CompleteLineNumberProgram has been renamed to CompleteLineProgram, use that instead."
 )]
-pub type CompleteLineNumberProgram<R, Offset> = CompleteLineProgram<R, Offset>;
+pub type CompleteLineNumberProgram<R> = CompleteLineProgram<R>;
 
 /// A line number program that has previously been run to completion.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CompleteLineProgram<R, Offset = <R as Reader>::Offset>
+pub struct CompleteLineProgram<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
-    header: LineProgramHeader<R, Offset>,
+    header: LineProgramHeader<R>,
 }
 
-impl<R, Offset> CompleteLineProgram<R, Offset>
+impl<R> CompleteLineProgram<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// Retrieve the `LineProgramHeader` for this program.
-    pub fn header(&self) -> &LineProgramHeader<R, Offset> {
+    pub fn header(&self) -> &LineProgramHeader<R> {
         &self.header
     }
 
@@ -1572,32 +1556,30 @@ where
     pub fn resume_from<'program>(
         &'program self,
         sequence: &LineSequence<R>,
-    ) -> ResumedLineRows<'program, R, Offset> {
+    ) -> ResumedLineRows<'program, R> {
         ResumedLineRows::resume(self, sequence)
     }
 }
 
 /// An entry in the `LineProgramHeader`'s `file_names` set.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct FileEntry<R, Offset = <R as Reader>::Offset>
+pub struct FileEntry<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
-    path_name: AttributeValue<R, Offset>,
+    path_name: AttributeValue<R>,
     directory_index: u64,
     timestamp: u64,
     size: u64,
     md5: [u8; 16],
 }
 
-impl<R, Offset> FileEntry<R, Offset>
+impl<R> FileEntry<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     // version 2-4
-    fn parse(input: &mut R, path_name: R) -> Result<FileEntry<R, Offset>> {
+    fn parse(input: &mut R, path_name: R) -> Result<FileEntry<R>> {
         let directory_index = input.read_uleb128()?;
         let timestamp = input.read_uleb128()?;
         let size = input.read_uleb128()?;
@@ -1618,7 +1600,7 @@ where
     /// > name, the file is located relative to either the compilation directory
     /// > (as specified by the DW_AT_comp_dir attribute given in the compilation
     /// > unit) or one of the directories in the include_directories section.
-    pub fn path_name(&self) -> AttributeValue<R, Offset> {
+    pub fn path_name(&self) -> AttributeValue<R> {
         self.path_name.clone()
     }
 
@@ -1640,7 +1622,7 @@ where
     /// Get this file's directory.
     ///
     /// A directory index of 0 corresponds to the compilation unit directory.
-    pub fn directory(&self, header: &LineProgramHeader<R>) -> Option<AttributeValue<R, Offset>> {
+    pub fn directory(&self, header: &LineProgramHeader<R>) -> Option<AttributeValue<R>> {
         header.directory(self.directory_index)
     }
 

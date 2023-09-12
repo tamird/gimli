@@ -31,15 +31,14 @@ pub enum DieReference<T = usize> {
 /// example, both `DW_OP_deref` and `DW_OP_xderef` are represented
 /// using `Operation::Deref`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Operation<R, Offset = <R as Reader>::Offset>
+pub enum Operation<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// Dereference the topmost value of the stack.
     Deref {
         /// The DIE of the base type or 0 to indicate the generic type
-        base_type: UnitOffset<Offset>,
+        base_type: UnitOffset<R::Offset>,
         /// The size of the data to dereference.
         size: u8,
         /// True if the dereference operation takes an address space
@@ -144,7 +143,7 @@ where
         /// The offset to add.
         offset: i64,
         /// The DIE of the base type or 0 to indicate the generic type
-        base_type: UnitOffset<Offset>,
+        base_type: UnitOffset<R::Offset>,
     },
     /// Compute the frame base (using `DW_AT_frame_base`), add the
     /// given offset, and then push the resulting sum on the stack.
@@ -161,7 +160,7 @@ where
     /// DIE.
     Call {
         /// The DIE to use.
-        offset: DieReference<Offset>,
+        offset: DieReference<R::Offset>,
     },
     /// Compute the address of a thread-local variable and push it on
     /// the stack.
@@ -197,7 +196,7 @@ where
     /// Completes the piece or expression.
     ImplicitPointer {
         /// The `.debug_info` offset of the value that this is an implicit pointer into.
-        value: DebugInfoOffset<Offset>,
+        value: DebugInfoOffset<R::Offset>,
         /// The byte offset into the value that the implicit pointer points to.
         byte_offset: i64,
     },
@@ -217,7 +216,7 @@ where
     /// Represents `DW_OP_GNU_parameter_ref`.
     ParameterRef {
         /// The DIE to use.
-        offset: UnitOffset<Offset>,
+        offset: UnitOffset<R::Offset>,
     },
     /// Relocate the address if needed, and push it on the stack.
     ///
@@ -232,7 +231,7 @@ where
     /// Represents `DW_OP_addrx`.
     AddressIndex {
         /// The index of the address in `.debug_addr`.
-        index: DebugAddrIndex<Offset>,
+        index: DebugAddrIndex<R::Offset>,
     },
     /// Read the address at the given index in `.debug_addr, and push it on the stack.
     /// Do not relocate the address.
@@ -240,14 +239,14 @@ where
     /// Represents `DW_OP_constx`.
     ConstantIndex {
         /// The index of the address in `.debug_addr`.
-        index: DebugAddrIndex<Offset>,
+        index: DebugAddrIndex<R::Offset>,
     },
     /// Interpret the value bytes as a constant of a given type, and push it on the stack.
     ///
     /// Represents `DW_OP_const_type`.
     TypedLiteral {
         /// The DIE of the base type.
-        base_type: UnitOffset<Offset>,
+        base_type: UnitOffset<R::Offset>,
         /// The value bytes.
         value: R,
     },
@@ -256,7 +255,7 @@ where
     /// Represents `DW_OP_convert`.
     Convert {
         /// The DIE of the base type.
-        base_type: UnitOffset<Offset>,
+        base_type: UnitOffset<R::Offset>,
     },
     /// Pop the top stack entry, reinterpret the bits in its value as a different type,
     /// and push it on the stack.
@@ -264,7 +263,7 @@ where
     /// Represents `DW_OP_reinterpret`.
     Reinterpret {
         /// The DIE of the base type.
-        base_type: UnitOffset<Offset>,
+        base_type: UnitOffset<R::Offset>,
     },
     /// The index of a local in the currently executing function.
     ///
@@ -302,10 +301,9 @@ enum OperationEvaluationResult<R: Reader> {
 
 /// A single location of a piece of the result of a DWARF expression.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Location<R, Offset = <R as Reader>::Offset>
+pub enum Location<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// The piece is empty.  Ordinarily this means the piece has been
     /// optimized away.
@@ -333,16 +331,15 @@ where
     /// The piece is a pointer to a value which has no actual location.
     ImplicitPointer {
         /// The `.debug_info` offset of the value that this is an implicit pointer into.
-        value: DebugInfoOffset<Offset>,
+        value: DebugInfoOffset<R::Offset>,
         /// The byte offset into the value that the implicit pointer points to.
         byte_offset: i64,
     },
 }
 
-impl<R, Offset> Location<R, Offset>
+impl<R> Location<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// Return true if the piece is empty.
     pub fn is_empty(&self) -> bool {
@@ -353,10 +350,9 @@ where
 /// The description of a single piece of the result of a DWARF
 /// expression.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Piece<R, Offset = <R as Reader>::Offset>
+pub struct Piece<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// If given, the size of the piece in bits.  If `None`, there
     /// must be only one piece whose size is all of the object.
@@ -374,7 +370,7 @@ where
     /// then placement within the register is defined by the ABI.
     pub bit_offset: Option<u64>,
     /// Where this piece is to be found.
-    pub location: Location<R, Offset>,
+    pub location: Location<R>,
 }
 
 // A helper function to handle branch offsets.
@@ -394,10 +390,9 @@ fn generic_type<O: ReaderOffset>() -> UnitOffset<O> {
     UnitOffset(O::from_u64(0).unwrap())
 }
 
-impl<R, Offset> Operation<R, Offset>
+impl<R> Operation<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// Parse a single DWARF expression operation.
     ///
@@ -407,7 +402,7 @@ where
     /// `bytes` points to a the operation to decode.  It should point into
     /// the same array as `bytecode`, which should be the entire
     /// expression.
-    pub fn parse(bytes: &mut R, encoding: Encoding) -> Result<Operation<R, Offset>> {
+    pub fn parse(bytes: &mut R, encoding: Encoding) -> Result<Operation<R>> {
         let opcode = bytes.read_u8()?;
         let name = constants::DwOp(opcode);
         match name {
@@ -707,7 +702,7 @@ where
                 let value = if encoding.version == 2 {
                     bytes
                         .read_address(encoding.address_size)
-                        .and_then(Offset::from_u64)?
+                        .and_then(R::Offset::from_u64)?
                 } else {
                     bytes.read_offset(encoding.format)?
                 };

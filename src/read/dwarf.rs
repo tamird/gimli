@@ -824,13 +824,12 @@ impl<R: Reader> DwarfPackage<R> {
 /// All of the commonly used information for a unit in the `.debug_info` or `.debug_types`
 /// sections.
 #[derive(Debug)]
-pub struct Unit<R, Offset = <R as Reader>::Offset>
+pub struct Unit<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// The header of the unit.
-    pub header: UnitHeader<R, Offset>,
+    pub header: UnitHeader<R>,
 
     /// The parsed abbreviations for the unit.
     pub abbreviations: Arc<Abbreviations>,
@@ -845,19 +844,19 @@ where
     pub low_pc: u64,
 
     /// The `DW_AT_str_offsets_base` attribute of the unit. Defaults to 0.
-    pub str_offsets_base: DebugStrOffsetsBase<Offset>,
+    pub str_offsets_base: DebugStrOffsetsBase<R::Offset>,
 
     /// The `DW_AT_addr_base` attribute of the unit. Defaults to 0.
-    pub addr_base: DebugAddrBase<Offset>,
+    pub addr_base: DebugAddrBase<R::Offset>,
 
     /// The `DW_AT_loclists_base` attribute of the unit. Defaults to 0.
-    pub loclists_base: DebugLocListsBase<Offset>,
+    pub loclists_base: DebugLocListsBase<R::Offset>,
 
     /// The `DW_AT_rnglists_base` attribute of the unit. Defaults to 0.
-    pub rnglists_base: DebugRngListsBase<Offset>,
+    pub rnglists_base: DebugRngListsBase<R::Offset>,
 
     /// The line number program of the unit.
-    pub line_program: Option<IncompleteLineProgram<R, Offset>>,
+    pub line_program: Option<IncompleteLineProgram<R>>,
 
     /// The DWO ID of a skeleton unit or split compilation unit.
     pub dwo_id: Option<DwoId>,

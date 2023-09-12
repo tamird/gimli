@@ -1269,19 +1269,18 @@ impl AugmentationData {
 /// > Frame Description Entries. There is at least one CIE in every non-empty
 /// > `.debug_frame` section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CommonInformationEntry<R, Offset = <R as Reader>::Offset>
+pub struct CommonInformationEntry<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// The offset of this entry from the start of its containing section.
-    offset: Offset,
+    offset: R::Offset,
 
     /// > A constant that gives the number of bytes of the CIE structure, not
     /// > including the length field itself (see Section 7.2.2). The size of the
     /// > length field plus the value of length must be an integral multiple of
     /// > the address size.
-    length: Offset,
+    length: R::Offset,
 
     format: Format,
 
@@ -1592,19 +1591,18 @@ where
 
 /// A `FrameDescriptionEntry` is a set of CFA instructions for an address range.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FrameDescriptionEntry<R, Offset = <R as Reader>::Offset>
+pub struct FrameDescriptionEntry<R>
 where
-    R: Reader<Offset = Offset>,
-    Offset: ReaderOffset,
+    R: Reader,
 {
     /// The start of this entry within its containing section.
-    offset: Offset,
+    offset: R::Offset,
 
     /// > A constant that gives the number of bytes of the header and
     /// > instruction stream for this function, not including the length field
     /// > itself (see Section 7.2.2). The size of the length field plus the value
     /// > of length must be an integral multiple of the address size.
-    length: Offset,
+    length: R::Offset,
 
     format: Format,
 
@@ -1612,7 +1610,7 @@ where
     /// that is associated with this FDE."
     ///
     /// This is the CIE at that offset.
-    cie: CommonInformationEntry<R, Offset>,
+    cie: CommonInformationEntry<R>,
 
     /// > The address of the first location associated with this table entry. If
     /// > the segment_size field of this FDE's CIE is non-zero, the initial
