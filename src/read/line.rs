@@ -2880,15 +2880,29 @@ mod tests {
         assert_exec_opcode(header, initial_registers, opcode, expected_registers, false);
     }
 
-    /// Ensure that `LineRows<R,P>` is covariant wrt R.
-    /// This only needs to compile.
-    #[allow(dead_code, unreachable_code, unused_variables)]
-    fn test_line_rows_variance<'a, 'b>(_: &'a [u8], _: &'b [u8])
-    where
-        'a: 'b,
-    {
-        let a: &OneShotLineRows<EndianSlice<'a, LittleEndian>> = unimplemented!();
-        let _: &OneShotLineRows<EndianSlice<'b, LittleEndian>> = a;
+    /// Ensure that `FileEntry<R>` is covariant wrt R.
+    #[test]
+    fn test_file_entry_variance() {
+        /// This only needs to compile.
+        fn _f<'a: 'b, 'b, E: Endianity>(
+            x: FileEntry<EndianSlice<'a, E>>,
+        ) -> FileEntry<EndianSlice<'b, E>> {
+            x
+        }
+    }
+
+    /// Ensure that `LineRows<R, P>` is covariant wrt R.
+    #[test]
+    fn test_line_rows_variance() {
+        /// This only needs to compile.
+        fn _f<'a: 'b, 'b, E: Endianity, P>(
+            x: LineRows<EndianSlice<'a, E>, P>,
+        ) -> LineRows<EndianSlice<'b, E>, P>
+        where
+            for<'l> P: LineProgram<EndianSlice<'l, E>>,
+        {
+            x
+        }
     }
 
     #[test]

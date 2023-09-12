@@ -2015,6 +2015,17 @@ mod tests {
         }
     }
 
+    /// Ensure that `Expression<R>` is covariant wrt R.
+    #[test]
+    fn test_expression_variance() {
+        /// This only needs to compile.
+        fn _f<'a: 'b, 'b, E: crate::Endianity>(
+            x: Expression<EndianSlice<'a, E>>,
+        ) -> Expression<EndianSlice<'b, E>> {
+            x
+        }
+    }
+
     #[test]
     fn test_compute_pc() {
         // Contents don't matter for this test, just length.

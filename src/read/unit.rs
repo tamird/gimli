@@ -3323,6 +3323,17 @@ mod tests {
         }
     }
 
+    /// Ensure that `AttributeValue<R>` is covariant wrt R.
+    #[test]
+    fn test_attribute_value_variance() {
+        /// This only needs to compile.
+        fn _f<'a: 'b, 'b, E: Endianity>(
+            x: AttributeValue<EndianSlice<'a, E>>,
+        ) -> AttributeValue<EndianSlice<'b, E>> {
+            x
+        }
+    }
+
     /// Ensure that `UnitHeader<R>` is covariant wrt R.
     #[test]
     fn test_unit_header_variance() {
